@@ -1,7 +1,7 @@
 use nvim_oxi::api::Buffer;
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 
 /// Initial instruction prepended to the first chat message.
 pub const INITIAL_INSTRUCTION: &str =

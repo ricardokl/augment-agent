@@ -1,16 +1,16 @@
-use nvim_oxi::api::{opts::InputOpts, types::CommandArgs};
+use nvim_oxi::api::{self, types::CommandArgs};
 
-use crate::{chat, error::Result, lua_utils};
+use crate::{chat, error::Result};
 
 pub fn flush_turn_command(_: CommandArgs) -> Result<()> {
-    chat::flush_current_turn()
+    chat::apply_changes()
 }
 
 pub fn my_augment_chat_command(args: CommandArgs) -> Result<()> {
     let fargs = args.fargs;
     if fargs.is_empty() {
-        let input_opts = InputOpts::builder().prompt("Augment Chat: ").build();
-        if let Some(input) = lua_utils::input(&input_opts)? {
+        let input: Option<String> = api::call_function("input", ("Augment Chat: ",))?;
+        if let Some(input) = input {
             if !input.is_empty() {
                 chat::chat(vec![input])?;
             }

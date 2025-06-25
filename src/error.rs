@@ -18,6 +18,15 @@ pub enum Error {
 
     #[error("Plugin state mutex is poisoned: {0}")] // New error variant for mutex poisoning
     StatePoisoned(#[from] PoisonError<MutexGuard<'static, crate::state::State>>), // Use crate::state::State for the type
+
+    #[error("No path to edit")]
+    NoPathToEdit,
+
+    #[error("Buffer not found: {0}")]
+    BufferNotFound(String),
+
+    #[error("Invalid buffer: {0}")]
+    InvalidBuffer(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
