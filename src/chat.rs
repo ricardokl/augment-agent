@@ -11,7 +11,7 @@ use crate::{
     state::{FIRST_ROUND_ATTACHED, INITIAL_INSTRUCTION, STATE},
 };
 pub fn chat(message_parts: Vec<String>) -> Result<()> {
-    let mut state = STATE.lock()?;
+    let state = STATE.lock()?;
     let mut message = message_parts.join(" ");
 
     let is_first_message = !FIRST_ROUND_ATTACHED.load(Ordering::SeqCst);
@@ -39,7 +39,7 @@ pub fn chat(message_parts: Vec<String>) -> Result<()> {
         message = format!("{} {}", INITIAL_INSTRUCTION, message);
     }
 
-    let escaped_message = lua_utils::shellescape(&message, true)?;
+    let escaped_message = shellescape(&message, true);
     let cmd = format!("Augment chat {}", escaped_message);
 
     api::command(&cmd)?;
@@ -106,3 +106,52 @@ pub fn clear_chat() -> Result<()> {
     Ok(())
 }
 
+fn shellescape(s: &str, special: bool) -> String {
+    let mut escaped = String::with_capacity(s.len() + 2);
+    escaped.push('\'');
+    escaped.push_str(&s.replace('\'', "'\\''"));
+    escaped.push('\'');
+
+    if special {
+        // In Vim's shellescape(), when {special} is true, it escapes characters
+        // that are special in a shell command line.
+        // For this use case, we are primarily concerned with `!` being replaced
+        // by `\!` and `%` by `\%`. Other special characters might need handling if the use
+        // case expands.
+        escaped = escaped.replace("!", "\\!");
+        escaped = escaped.replace("%", "\\%");
+    }
+
+    escaped
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_shellescape_simple() {
+        assert_eq!(shellescape("hello world", false), "'hello world'");
+    }
+
+    #[test]
+    fn test_shellescape_with_quote() {
+        assert_eq!(shellescape("it's a trap", false), "'it'\\''s a trap'");
+    }
+
+    #[test]
+    fn test_shellescape_with_special_chars() {
+        assert_eq!(shellescape("special!", true), "'special\\!'");
+    }
+
+    #[test]
+    fn test_shellescape_with_special_chars_and_quote() {
+        assert_eq!(shellescape("it's special!", true), "'it'\\''s special\\!'");
+    }
+
+    #[test]
+    fn test_shellescape_empty_string() {
+        assert_eq!(shellescape("", false), "''");
+    }
+}

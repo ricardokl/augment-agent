@@ -24,7 +24,7 @@ pub fn find_buffer_by_path(path: &str) -> Result<Buffer> {
     for buf in api::list_bufs() {
         let buf_path = buf.get_name()?;
         let buf_abs_path = std::fs::canonicalize(&buf_path).ok();
-        if buf_path == path || buf_abs_path == abs_path {
+        if buf_path.to_string_lossy() == path || buf_abs_path == abs_path {
             if !buf.is_valid() {
                 return Err(Error::InvalidBuffer(path.to_string()));
             }

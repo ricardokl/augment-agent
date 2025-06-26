@@ -7,17 +7,14 @@ pub enum Error {
     #[error("Nvim API error: {0}")]
     Nvim(#[from] api::Error),
 
-    #[error("Could not get a lock on the plugin state")]
-    StateLock, // This variant is now superseded by StatePoisoned, but I'll keep it for now as a distinct semantic error if needed.
-
     #[error("Augment chat buffer not found")]
     NoAugmentBufferFound,
 
     #[error("Found Augment chat buffer is invalid")]
     InvalidAugmentBuffer,
 
-    #[error("Plugin state mutex is poisoned: {0}")] // New error variant for mutex poisoning
-    StatePoisoned(#[from] PoisonError<MutexGuard<'static, crate::state::State>>), // Use crate::state::State for the type
+    #[error("Plugin state mutex is poisoned: {0}")]
+    StatePoisoned(#[from] PoisonError<MutexGuard<'static, crate::state::State>>),
 
     #[error("No path to edit")]
     NoPathToEdit,
