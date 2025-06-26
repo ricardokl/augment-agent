@@ -58,7 +58,7 @@ pub fn extract_code_blocks(text: &str) -> Vec<CodeBlock> {
         }
 
         let mut code_lines = Vec::new();
-        let start_line: usize = line_number + 1;
+        let block_start_line = line_number + 1;
         let mut found_closing_fence = false;
 
         while let Some(code_line) = lines.next() {
@@ -77,6 +77,7 @@ pub fn extract_code_blocks(text: &str) -> Vec<CodeBlock> {
 
         if found_closing_fence {
             let code = code_lines.join("\n");
+            let start_line: usize = block_start_line;
             let end_line = if code_lines.is_empty() {
                 start_line.saturating_sub(1)
             } else {
@@ -114,8 +115,7 @@ mod tests {
 
     #[test]
     fn test_simple_code_block() {
-        let text = r"
-rust\nlet x = 5;\n```";
+        let text = "```rust\nlet x = 5;\n```";
         let blocks = extract_code_blocks(text);
         assert_eq!(blocks.len(), 1);
         assert_eq!(
@@ -133,13 +133,25 @@ rust\nlet x = 5;\n```";
 
     #[test]
     fn test_full_metadata() {
-        todo!()
+        let text = "```rust path=/tmp/foo.rs mode=EDIT\nlet x = 5;\n```";
+        let blocks = extract_code_blocks(text);
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(
+            blocks[0],
+            CodeBlock {
+                lang: Some("rust".to_string()),
+                path: Some("/tmp/foo.rs".to_string()),
+                mode: Some("EDIT".to_string()),
+                code: "let x = 5;".to_string(),
+                start_line: 2,
+                end_line: 2,
+            }
+        );
     }
 
     #[test]
     fn test_multiline_block() {
-        let text = r"
-\nline 1\nline 2\nline 3\n```";
+        let text = "```\nline 1\nline 2\nline 3\n```";
         let blocks = extract_code_blocks(text);
         assert_eq!(blocks.len(), 1);
         assert_eq!(blocks[0].code, "line 1\nline 2\nline 3");
@@ -149,13 +161,22 @@ rust\nlet x = 5;\n```";
 
     #[test]
     fn test_multiple_blocks() {
-        todo!()
+        let text = "```rust\nlet x = 5;\n```\n```python\nprint(\"hello\")\n```";
+        let blocks = extract_code_blocks(text);
+        assert_eq!(blocks.len(), 2);
+        assert_eq!(blocks[0].lang, Some("rust".to_string()));
+        assert_eq!(blocks[0].code, "let x = 5;");
+        assert_eq!(blocks[0].start_line, 2);
+        assert_eq!(blocks[0].end_line, 2);
+        assert_eq!(blocks[1].lang, Some("python".to_string()));
+        assert_eq!(blocks[1].code, "print(\"hello\")");
+        assert_eq!(blocks[1].start_line, 6);
+        assert_eq!(blocks[1].end_line, 6);
     }
 
     #[test]
     fn test_empty_block() {
-        let text = r"
-rust\n```";
+        let text = "```rust\n```";
         let blocks = extract_code_blocks(text);
         assert_eq!(blocks.len(), 1);
         assert_eq!(blocks[0].code, "");
@@ -165,26 +186,54 @@ rust\n```";
 
     #[test]
     fn test_extended_fence() {
-        todo!()
+        let text = "````rust\nlet x = 5;\n````";
+        let blocks = extract_code_blocks(text);
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0].lang, Some("rust".to_string()));
+        assert_eq!(blocks[0].code, "let x = 5;");
+        assert_eq!(blocks[0].start_line, 2);
+        assert_eq!(blocks[0].end_line, 2);
     }
 
     #[test]
     fn test_nested_fences() {
-        todo!()
+        let text = "```\n```rust\nlet x = 5;\n```\n```";
+        let blocks = extract_code_blocks(text);
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(
+            blocks[0].code,
+            "```rust
+let x = 5;
+```"
+        );
+        assert_eq!(blocks[0].start_line, 2);
+        assert_eq!(blocks[0].end_line, 4);
     }
 
     #[test]
     fn test_unclosed_block() {
-        todo!()
+        let text = "```rust\nlet x = 5;";
+        let blocks = extract_code_blocks(text);
+        assert!(blocks.is_empty());
     }
 
     #[test]
     fn test_closing_fence_with_whitespace() {
-        todo!()
+        let text = "```rust\nlet x = 5;\n```   ";
+        let blocks = extract_code_blocks(text);
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0].code, "let x = 5;");
+        assert_eq!(blocks[0].start_line, 2);
+        assert_eq!(blocks[0].end_line, 2);
     }
 
     #[test]
     fn test_closing_fence_min_length() {
-        todo!()
+        let text = "```rust\nlet x = 5;\n``````";
+        let blocks = extract_code_blocks(text);
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0].code, "let x = 5;");
+        assert_eq!(blocks[0].start_line, 2);
+        assert_eq!(blocks[0].end_line, 2);
     }
 }
