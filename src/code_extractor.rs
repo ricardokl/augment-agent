@@ -32,7 +32,12 @@ pub fn extract_code_blocks(text: &str) -> Vec<CodeBlock> {
     while let Some(line) = lines.next() {
         line_number += 1;
 
-        let backticks = line.chars().take_while(|c| *c == '`').count();
+        if !line.starts_with("```") {
+            continue;
+        }
+
+        let opening_fence = line.chars().take_while(|c| *c == '`').collect::<String>();
+        let backticks = opening_fence.len();
         if backticks < 3 {
             continue;
         }
@@ -64,13 +69,15 @@ pub fn extract_code_blocks(text: &str) -> Vec<CodeBlock> {
         while let Some(code_line) = lines.next() {
             line_number += 1;
 
-            let closing_backticks = code_line.chars().take_while(|c| *c == '`').count();
-            if closing_backticks >= backticks {
-                let rest = &code_line[closing_backticks..];
-                if rest.trim().is_empty() {
-                    found_closing_fence = true;
-                    break;
-                }
+            let closing_fence_str = code_line
+                .chars()
+                .take_while(|c| *c == '`')
+                .collect::<String>();
+            if closing_fence_str == opening_fence
+                && code_line[closing_fence_str.len()..].trim().is_empty()
+            {
+                found_closing_fence = true;
+                break;
             }
             code_lines.push(code_line);
         }
@@ -170,8 +177,8 @@ mod tests {
         assert_eq!(blocks[0].end_line, 2);
         assert_eq!(blocks[1].lang, Some("python".to_string()));
         assert_eq!(blocks[1].code, "print(\"hello\")");
-        assert_eq!(blocks[1].start_line, 6);
-        assert_eq!(blocks[1].end_line, 6);
+        assert_eq!(blocks[1].start_line, 5);
+        assert_eq!(blocks[1].end_line, 5);
     }
 
     #[test]
@@ -200,14 +207,9 @@ mod tests {
         let text = "```\n```rust\nlet x = 5;\n```\n```";
         let blocks = extract_code_blocks(text);
         assert_eq!(blocks.len(), 1);
-        assert_eq!(
-            blocks[0].code,
-            "```rust
-let x = 5;
-```"
-        );
+        assert_eq!(blocks[0].code, "```rust\nlet x = 5;");
         assert_eq!(blocks[0].start_line, 2);
-        assert_eq!(blocks[0].end_line, 4);
+        assert_eq!(blocks[0].end_line, 3);
     }
 
     #[test]
@@ -229,11 +231,18 @@ let x = 5;
 
     #[test]
     fn test_closing_fence_min_length() {
-        let text = "```rust\nlet x = 5;\n``````";
+        let text = "```rust\nlet x = 5;\n```";
         let blocks = extract_code_blocks(text);
         assert_eq!(blocks.len(), 1);
         assert_eq!(blocks[0].code, "let x = 5;");
         assert_eq!(blocks[0].start_line, 2);
         assert_eq!(blocks[0].end_line, 2);
+    }
+
+    #[test]
+    fn test_indented_closing_fence_ignored() {
+        let text = "```rust\nlet x = 5;\n  ```";
+        let blocks = extract_code_blocks(text);
+        assert!(blocks.is_empty());
     }
 }
